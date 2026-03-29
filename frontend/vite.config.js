@@ -6,5 +6,10 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    proxy: {
+      "/extract": "http://localhost:8000",
+      "/download": "http://localhost:8000",
+      "/health":   "http://localhost:8000",
+    },
   },
 });
