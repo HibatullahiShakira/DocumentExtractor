@@ -1,13 +1,10 @@
 """
 mapper.py
 ---------
-Pure deterministic mapping logic.
-No AI. No API calls. No side effects.
 
 Takes a raw extracted dictionary and returns a mapped output dictionary
 that exactly follows the assessment mapping rules.
 """
-
 import re
 
 

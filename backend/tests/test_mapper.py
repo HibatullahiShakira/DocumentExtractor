@@ -1,8 +1,4 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
+from services.generator import generate_txt
 from services.mapper import (
     map_antrieb_header,
     map_antrieb_row,
@@ -16,7 +12,6 @@ from services.mapper import (
     map_l_column,
     map_r_column,
 )
-from services.generator import generate_txt
 
 FILE_2_RAW = {
     "company_name": "Musterbau & Holztechnik GmbH",
@@ -268,7 +263,7 @@ def test_line_numbers_sequential_file1():
 def test_generator_produces_pipe_delimiter():
     result = map_document(FILE_2_RAW)
     txt = generate_txt(result)
-    first_line = txt.split("\n")[0]
+    first_line = txt.split(chr(10))[0]
     assert "|" in first_line
     assert first_line.count("|") == 10
 
@@ -276,7 +271,7 @@ def test_generator_produces_pipe_delimiter():
 def test_generator_line_count():
     result = map_document(FILE_2_RAW)
     txt = generate_txt(result)
-    lines = txt.strip().split("\n")
+    lines = txt.strip().split(chr(10))
     assert len(lines) == 13
 
 

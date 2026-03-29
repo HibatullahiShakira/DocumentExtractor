@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]
   pull_request:
-    branches: ["**"]
+    branches: ["main"]
 
 jobs:
   lint-and-test:
@@ -34,9 +34,7 @@ jobs:
         run: ruff format --check backend/
 
       - name: Run tests
-        run: |
-          cd backend
-          python -m pytest tests/ -v --tb=short
+        run: python -m pytest backend/tests/ -v --tb=short
 
   docker-build:
     name: Docker Build
