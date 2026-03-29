@@ -19,7 +19,7 @@ import fitz  # PyMuPDF
 import requests
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+_GROQ_MODEL_DEFAULT = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 EXTRACTION_SCHEMA = """
 {
@@ -65,7 +65,7 @@ EXTRACTION_PROMPT = (
     "   Always use the column headers to identify Breite and Hoehe correctly.\n"
     "8. For header fields extract ONLY that specific field value.\n"
     "   Do not bleed values from adjacent fields on the same line.\n\n"
-    "Return this exact JSON structure:\n" + EXTRACTION_SCHEMA
+    "Return this exact JS ON structure:\n" + EXTRACTION_SCHEMA
 )
 
 
@@ -119,12 +119,13 @@ def extract_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY environment variable is not set.")
+    model = os.environ.get("GROQ_MODEL", _GROQ_MODEL_DEFAULT)
 
     image_b64 = pdf_page_to_base64_png(pdf_bytes)
     image_url = f"data:image/png;base64,{image_b64}"
 
     payload = {
-        "model": GROQ_MODEL,
+        "model": model,
         "messages": [
             {
                 "role": "user",

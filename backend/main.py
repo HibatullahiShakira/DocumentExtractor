@@ -9,6 +9,7 @@ Endpoints:
     POST /download - upload PDF, get .txt file for download
 """
 
+import logging
 import os
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -18,6 +19,10 @@ from fastapi.responses import Response
 from services.extractor import extract_from_pdf_bytes
 from services.generator import generate_txt
 from services.mapper import map_document
+
+logger = logging.getLogger(__name__)
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 app = FastAPI(
     title="Rolladen PDF Extraction API",
@@ -33,26 +38,14 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
-def health_check():
-    """Liveness check — confirms the service is running."""
-    return {"status": "ok", "service": "rolladen-extraction-api"}
-
-
-@app.post("/extract")
-async def extract_and_map(file: UploadFile = File(...)):
+def _run_pipeline(pdf_bytes: bytes) -> tuple[dict, str]:
     """
-    Accepts a PDF upload.
-    Returns extracted raw data, mapped output, and the final txt content.
+    Shared extraction pipeline: PDF bytes -> (mapped dict, txt string).
+
+    Raises:
+        HTTPException 422 if extraction produces invalid output.
+        HTTPException 500 for unexpected errors.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
-
-    pdf_bytes = await file.read()
-
-    if len(pdf_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-
     try:
         raw = extract_from_pdf_bytes(pdf_bytes)
     except ValueError as e:
@@ -66,10 +59,41 @@ async def extract_and_map(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Mapping failed: {e}") from e
 
     txt_content = generate_txt(mapped)
+    return mapped, txt_content
+
+
+def _validate_upload(file: UploadFile, pdf_bytes: bytes) -> None:
+    """Validates filename and size. Raises HTTPException on failure."""
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+    if len(pdf_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(pdf_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
+
+
+@app.get("/health")
+def health_check():
+    """Liveness check — confirms the service is running."""
+    return {"status": "ok", "service": "rolladen-extraction-api"}
+
+
+@app.post("/extract")
+async def extract_and_map(file: UploadFile = File(...)):
+    """
+    Accepts a PDF upload.
+    Returns extracted raw data, mapped output, and the final txt content.
+    """
+    pdf_bytes = await file.read()
+    _validate_upload(file, pdf_bytes)
+
+    mapped, txt_content = _run_pipeline(pdf_bytes)
 
     return {
         "filename": file.filename,
-        "raw": raw,
         "mapped": mapped,
         "txt_content": txt_content,
     }
@@ -81,23 +105,10 @@ async def download_txt(file: UploadFile = File(...)):
     Accepts a PDF upload.
     Returns the mapped .txt file directly as a downloadable response.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
-
     pdf_bytes = await file.read()
+    _validate_upload(file, pdf_bytes)
 
-    if len(pdf_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-
-    try:
-        raw = extract_from_pdf_bytes(pdf_bytes)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=f"Extraction failed: {e}") from e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected extraction error: {e}") from e
-
-    mapped = map_document(raw)
-    txt_content = generate_txt(mapped)
+    _, txt_content = _run_pipeline(pdf_bytes)
 
     output_filename = file.filename.replace(".pdf", "_mapped.txt").replace(".PDF", "_mapped.txt")
 

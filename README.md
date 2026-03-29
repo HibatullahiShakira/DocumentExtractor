@@ -1,26 +1,180 @@
-# Rolladen PDF Extraction & Mapping
+# Rolladen PDF Extraction API
 
-Extracts structured data from German roller blind purchase order PDFs and maps it to a pipe-delimited `.txt` format.
+Extracts structured data from German roller blind (Rolladen) purchase order PDFs and maps it to a pipe-delimited text format for downstream processing.
 
-## Stack
-- **Backend**: FastAPI + Claude Vision API
-- **Frontend**: React (Vite)
-- **Containerization**: Docker + Docker Compose
+---
+
+## Overview
+
+| Component | Technology |
+|---|---|
+| Backend API | FastAPI (Python 3.11) |
+| PDF rendering | PyMuPDF (fitz) |
+| Vision extraction | Groq API — `meta-llama/llama-4-scout-17b-16e-instruct` |
+| Mapping logic | Deterministic Python rules (no AI) |
+| Output format | Pipe-delimited `.txt` |
+| Frontend | React + Vite, served by nginx |
+| Containerisation | Docker + Docker Compose |
+| CI/CD | GitHub Actions (lint → test → docker build) |
+
+---
+
+## Prerequisites
+
+- Docker and Docker Compose
+- A [Groq API key](https://console.groq.com) (free tier)
+
+---
 
 ## Quick Start
 
-```bash
-export ANTHROPIC_API_KEY=your_key_here
-docker-compose up --build
-```
-
-- Frontend: http://localhost:5173
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-
-## Docker Pull
+**1. Clone the repo**
 
 ```bash
-docker pull hibatullahi/rolladen-backend:latest
-docker pull hibatullahi/rolladen-frontend:latest
+git clone https://github.com/HibatullahiShakira/DocumentExtractor.git
+cd DocumentExtractor
 ```
+
+**2. Set your API key**
+
+```bash
+# Create a .env file in the project root
+echo "GROQ_API_KEY=gsk_your_key_here" > .env
+```
+
+**3. Start everything**
+
+```bash
+docker compose up --build
+```
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GROQ_API_KEY` | Yes | — | Groq API key for vision inference |
+| `GROQ_MODEL` | No | `meta-llama/llama-4-scout-17b-16e-instruct` | Override the Groq model |
+| `ALLOWED_ORIGINS` | No | `*` | Comma-separated CORS origins |
+
+`.env` example:
+
+```env
+GROQ_API_KEY=gsk_your_key_here
+# GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+# ALLOWED_ORIGINS=http://localhost:5173
+```
+
+---
+
+## API Endpoints
+
+### `GET /health`
+Liveness check.
+
+```json
+{ "status": "ok", "service": "rolladen-extraction-api" }
+```
+
+### `POST /extract`
+Upload a PDF, receive structured JSON.
+
+```bash
+curl -X POST http://localhost:8000/extract \
+  -F "file=@order.pdf"
+```
+
+**Response:**
+```json
+{
+  "filename": "order.pdf",
+  "mapped": {
+    "header": ["Company Name", "Ref", "OrderNo", "..."],
+    "positions": [["1", "2", "880", "1390", "0", "1", "1", "EG1", "0", "0"]]
+  },
+  "txt_content": "Company Name|Ref|OrderNo|...\n1|2|880|..."
+}
+```
+
+### `POST /download`
+Upload a PDF, download the mapped `.txt` file directly.
+
+```bash
+curl -X POST http://localhost:8000/download \
+  -F "file=@order.pdf" \
+  -o order_mapped.txt
+```
+
+**Limits:** Maximum upload size is 10 MB.
+
+---
+
+## Output Format
+
+### Header row (11 columns)
+```
+Company|ProjectRef|OrderNumber|DeliveryDate|Colour|ConstructionType|WallThickness|Foam|Endleiste|MotorSystem|TotalQty
+```
+
+### Position rows (10 columns)
+```
+LineNo|Qty|Width|Height|LeftMotor|RightMotor|MotorCode|PosCode|Notes|NotesMeasurement
+```
+
+**Motor codes:** `1` = Elektro + IO, `2` = Elektro + SMI, `0` = other
+**Notes:** `8` = Notkurbel, `Rolladenkasten` = roller blind box, `0` = none
+
+---
+
+## Running Tests Locally
+
+```bash
+cd backend
+pip install -r requirements.txt
+pytest
+```
+
+47 unit tests covering header mapping, position mapping, OCR typo handling, and output generation.
+
+---
+
+## Project Structure
+
+```
+.
+├── backend/
+│   ├── main.py                  # FastAPI app + endpoints
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── services/
+│       ├── extractor.py         # PDF -> Groq vision API -> raw dict
+│       ├── mapper.py            # raw dict -> mapped dict (deterministic)
+│       └── generator.py         # mapped dict -> pipe-delimited txt
+│   └── tests/
+│       └── test_mapper.py       # 47 unit tests
+├── frontend/
+│   ├── src/App.jsx              # React upload UI
+│   ├── Dockerfile               # nginx multi-stage build
+│   └── vite.config.js
+├── docker-compose.yml
+├── pyproject.toml               # ruff + pytest config
+└── .github/workflows/ci.yml     # GitHub Actions CI
+```
+
+---
+
+## CI/CD
+
+Every push triggers:
+
+1. **Lint** — `ruff check` (E, W, F, N, UP rules)
+2. **Format check** — `ruff format --check`
+3. **Tests** — `pytest` (all 47 tests must pass)
+4. **Docker build** — backend and frontend images built to verify no broken dependencies

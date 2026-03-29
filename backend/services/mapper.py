@@ -6,12 +6,10 @@ Takes a raw extracted dictionary and returns a mapped output dictionary
 that exactly follows the assessment mapping rules.
 """
 
+import logging
 import re
 
-
-# ---------------------------------------------------------------------------
-# HEADER MAPPING
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
 
 def map_colour(raw: str) -> str:
@@ -30,6 +28,7 @@ def map_colour(raw: str) -> str:
         return "ANTHRAZIT"
     elif "silber" in raw_lower:
         return "SILBER"
+    logger.warning("Unknown colour value %r — passing through as-is", raw)
     return raw.upper()
 
 
