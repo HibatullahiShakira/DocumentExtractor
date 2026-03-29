@@ -5,6 +5,7 @@ mapper.py
 Takes a raw extracted dictionary and returns a mapped output dictionary
 that exactly follows the assessment mapping rules.
 """
+
 import re
 
 
@@ -100,17 +101,17 @@ def map_header(raw: dict) -> list:
     construction_raw = raw.get("construction", "")
 
     return [
-        raw.get("company_name", ""),             # COL 1
-        raw.get("project_ref", ""),              # COL 2
-        raw.get("order_number", ""),             # COL 3
-        raw.get("delivery_date", ""),            # COL 4
-        map_colour(raw.get("colour", "")),       # COL 5
-        map_construction_type(construction_raw), # COL 6
-        map_construction_number(construction_raw), # COL 7
-        raw.get("foam", ""),                     # COL 8
-        map_endleiste(raw.get("endleiste", "")), # COL 9
-        map_antrieb_header(raw.get("antrieb", "")), # COL 10
-        str(raw.get("total_quantity", "")),      # COL 11
+        raw.get("company_name", ""),  # COL 1
+        raw.get("project_ref", ""),  # COL 2
+        raw.get("order_number", ""),  # COL 3
+        raw.get("delivery_date", ""),  # COL 4
+        map_colour(raw.get("colour", "")),  # COL 5
+        map_construction_type(construction_raw),  # COL 6
+        map_construction_number(construction_raw),  # COL 7
+        raw.get("foam", ""),  # COL 8
+        map_endleiste(raw.get("endleiste", "")),  # COL 9
+        map_antrieb_header(raw.get("antrieb", "")),  # COL 10
+        str(raw.get("total_quantity", "")),  # COL 11
     ]
 
 
@@ -188,16 +189,16 @@ def map_position_row(line_number: int, row: dict, header_antrieb: str) -> list:
     bemerkung = row.get("bemerkung", "") or ""
 
     return [
-        str(line_number),                                           # COL 1: running number
-        str(row.get("stueck", "")),                                 # COL 2: quantity
-        str(row.get("breite", "")),                                 # COL 3: width
-        str(row.get("hoehe", "")),                                  # COL 4: height
-        map_l_column(row.get("l", "")),                             # COL 5: left motor
-        map_r_column(row.get("r", "")),                             # COL 6: right motor
-        map_antrieb_row(row.get("antrieb", ""), header_antrieb),    # COL 7: motor code
-        row.get("pos", ""),                                         # COL 8: position code
-        map_bemerkung(bemerkung),                                   # COL 9: notes type
-        map_bemerkung_number(bemerkung),                            # COL 10: notes number
+        str(line_number),  # COL 1: running number
+        str(row.get("stueck", "")),  # COL 2: quantity
+        str(row.get("breite", "")),  # COL 3: width
+        str(row.get("hoehe", "")),  # COL 4: height
+        map_l_column(row.get("l", "")),  # COL 5: left motor
+        map_r_column(row.get("r", "")),  # COL 6: right motor
+        map_antrieb_row(row.get("antrieb", ""), header_antrieb),  # COL 7: motor code
+        row.get("pos", ""),  # COL 8: position code
+        map_bemerkung(bemerkung),  # COL 9: notes type
+        map_bemerkung_number(bemerkung),  # COL 10: notes number
     ]
 
 
