@@ -364,6 +364,21 @@ def test_antrieb_row_empty():
     assert map_antrieb_row("", "Alle Motoren mit IO-homecontrol") == "0"
 
 
+def test_antrieb_row_eicktro_ocr_typo():
+    # "Eicktro" is an OCR typo found in FILE 1 DG5 — must still map to "1"
+    assert map_antrieb_row("Eicktro", "Alle Motoren mit IO-homecontrol") == "1"
+
+
+def test_antrieb_row_elktro_ocr_typo():
+    # Another common OCR variant
+    assert map_antrieb_row("Elktro", "Alle Motoren mit IO-homecontrol") == "1"
+
+
+def test_antrieb_row_elektr_truncated():
+    # Model sometimes returns "Elektr" (truncated) - must still map to "1"
+    assert map_antrieb_row("Elektr", "Alle Motoren mit IO-homecontrol") == "1"
+
+
 def test_bemerkung_notkurbel():
     assert map_bemerkung("Notkurbel") == "8"
 

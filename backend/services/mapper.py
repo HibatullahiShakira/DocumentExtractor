@@ -138,7 +138,10 @@ def map_antrieb_row(antrieb_cell: str, header_antrieb: str) -> str:
         Elektro + SMI header -> "2"
         Anything else        -> "0"
     """
-    is_elektro = "elektro" in antrieb_cell.lower()
+    # Regex catches common OCR typos: "Elektro", "Eicktro", "Elktro", etc.
+    cell_lower = antrieb_cell.lower()
+    # Regex covers OCR typos: "Elektro", "Eicktro", "Elktro", "Elektr" (truncated)
+    is_elektro = bool(re.search(r"e[il][a-z]*[kt]ro?", cell_lower))
     header_upper = header_antrieb.upper()
 
     if is_elektro and "IO" in header_upper:
