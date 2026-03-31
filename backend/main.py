@@ -13,9 +13,6 @@ import logging
 import os
 
 from dotenv import load_dotenv
-
-load_dotenv()  # loads .env from the project root (or backend/) automatically
-
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -23,6 +20,8 @@ from fastapi.responses import Response
 from services.extractor import extract_from_pdf_bytes
 from services.generator import generate_txt
 from services.mapper import map_document
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
