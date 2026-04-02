@@ -13,8 +13,9 @@ Extracts structured data from German roller blind (Rolladen) purchase order PDFs
 | Vision extraction | Groq API — `meta-llama/llama-4-scout-17b-16e-instruct` |
 | Mapping logic | Deterministic Python rules (no AI) |
 | Output format | Pipe-delimited `.txt` |
-| Frontend | React + Vite, served by nginx |
+| Frontend | React + Vite + Tailwind CSS v4, served by nginx |
 | Containerisation | Docker + Docker Compose |
+| Deployment | Railway (backend + frontend as separate services) |
 | CI/CD | GitHub Actions (lint → test → docker build) |
 
 ---
@@ -54,6 +55,42 @@ docker compose up --build
 | Backend API | http://localhost:8000 |
 | API docs | http://localhost:8000/docs |
 
+### Running without Docker
+
+**Terminal 1 — Backend:**
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The `.env` file in the project root is loaded automatically via `python-dotenv`.
+
+---
+
+## Deployment (Railway)
+
+The app is deployed as two separate Railway services from the same GitHub repo.
+
+**Backend service**
+- Root directory: `/backend`
+- Environment variable: `GROQ_API_KEY`
+
+**Frontend service**
+- Root directory: `/frontend`
+- Environment variables:
+  - `BACKEND_URL` — public URL of the backend service (e.g. `https://your-backend.up.railway.app`)
+  - `PORT` — set to `80` (nginx listen port)
+
+Railway auto-deploys on every push to `main`.
+
 ---
 
 ## Environment Variables
@@ -63,6 +100,8 @@ docker compose up --build
 | `GROQ_API_KEY` | Yes | — | Groq API key for vision inference |
 | `GROQ_MODEL` | No | `meta-llama/llama-4-scout-17b-16e-instruct` | Override the Groq model |
 | `ALLOWED_ORIGINS` | No | `*` | Comma-separated CORS origins |
+| `PORT` | No | `8000` (backend) / `80` (frontend) | Port the service listens on |
+| `BACKEND_URL` | Frontend only | — | Backend URL for nginx proxy (Railway deployment) |
 
 `.env` example:
 
@@ -103,6 +142,8 @@ curl -X POST http://localhost:8000/extract \
 }
 ```
 
+Returns `422` if the uploaded PDF is not a Rolladen purchase order.
+
 ### `POST /download`
 Upload a PDF, download the mapped `.txt` file directly.
 
@@ -112,7 +153,13 @@ curl -X POST http://localhost:8000/download \
   -o order_mapped.txt
 ```
 
-**Limits:** Maximum upload size is 10 MB.
+**Limits:** Maximum upload size is 10 MB. Only `.pdf` files accepted.
+
+---
+
+## Document Validation
+
+The app automatically rejects non-Rolladen documents. If you upload a PDF that is not a German roller blind purchase order, the API returns a `422` error with a clear message instead of silently producing empty results.
 
 ---
 
@@ -160,7 +207,12 @@ pytest
 │   └── tests/
 │       └── test_mapper.py       # 47 unit tests
 ├── frontend/
-│   ├── src/App.jsx              # React upload UI
+│   ├── src/
+│   │   ├── App.jsx              # React upload + results UI
+│   │   └── App.css              # Tailwind CSS v4 entry point
+│   ├── nginx.conf               # nginx reverse proxy config (env-templated)
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
 │   ├── Dockerfile               # nginx multi-stage build
 │   └── vite.config.js
 ├── docker-compose.yml
