@@ -23,6 +23,7 @@ _GROQ_MODEL_DEFAULT = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 EXTRACTION_SCHEMA = """
 {
+  "is_rolladen_order": true,
   "company_name": "string",
   "project_ref": "string",
   "order_number": "string - the large number on the same line as the word Roll",
@@ -50,8 +51,12 @@ EXTRACTION_SCHEMA = """
 
 EXTRACTION_PROMPT = (
     "You are a precise document data extraction engine.\n\n"
-    "You are given an image of a German roller blind (Rolladen) purchase order form.\n\n"
-    "Extract the specified fields and return them as a single valid JSON object.\n\n"
+    "First, determine whether the image is a German roller blind (Rolladen) purchase order form.\n"
+    "A Rolladen order contains fields like Rolladen, Liefertermin, Konstruktion, Endleiste, Antrieb,\n"
+    "and a table with columns Pos, Breite, Hoehe, L, R, Antrieb, Bemerkung, Stueck.\n\n"
+    "If it is NOT a Rolladen order, return ONLY this JSON and nothing else:\n"
+    '{"is_rolladen_order": false}\n\n'
+    "If it IS a Rolladen order, extract all fields and return the full JSON below.\n\n"
     "CRITICAL RULES:\n"
     "1. Return ONLY valid JSON. No explanation, no markdown, no code fences.\n"
     "2. Extract values exactly as they appear. Do not translate or interpret.\n"
@@ -65,7 +70,7 @@ EXTRACTION_PROMPT = (
     "   Always use the column headers to identify Breite and Hoehe correctly.\n"
     "8. For header fields extract ONLY that specific field value.\n"
     "   Do not bleed values from adjacent fields on the same line.\n\n"
-    "Return this exact JS ON structure:\n" + EXTRACTION_SCHEMA
+    "Return this exact JSON structure:\n" + EXTRACTION_SCHEMA
 )
 
 
@@ -153,8 +158,16 @@ def extract_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     cleaned = clean_json_response(raw_response)
 
     try:
-        return json.loads(cleaned)
+        parsed = json.loads(cleaned)
     except json.JSONDecodeError as e:
         raise ValueError(
             f"Model returned invalid JSON.\nResponse: {raw_response}\nError: {e}"
         ) from e
+
+    if not parsed.get("is_rolladen_order", True):
+        raise ValueError(
+            "This does not appear to be a Rolladen purchase order. "
+            "Please upload a valid Rolladen order form."
+        )
+
+    return parsed
